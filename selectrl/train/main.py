@@ -342,7 +342,7 @@ def train_on_batch(batch: dict, model, optimizer, algo, d: Dist, micro_tokens: i
                 _scatter(lp, b, mb, ref_lp)
     model.train(True)
 
-    stats = torch.zeros(8, device=d.device, dtype=torch.float64)
+    stats = torch.zeros(10, device=d.device, dtype=torch.float64)
     for m, m_idx in enumerate(mine):
         norm = float(batch["norms"][m][mode])
         for mb in micro(m_idx):
@@ -371,7 +371,9 @@ def train_on_batch(batch: dict, model, optimizer, algo, d: Dist, micro_tokens: i
                 pre = m == 0  # before the first optimizer update of the step: logp is the sampling policy
                 stats += torch.tensor([loss.item(), b.num_tokens, (logp.detach() - rlp).abs().sum().item() if pre else 0.0,
                                        ((ratio - 1).abs() > 0.2).float().sum().item(),
-                                       (rlp - logp.detach()).sum().item() if pre else 0.0, b.num_tokens if pre else 0, 0, 0],
+                                       (rlp - logp.detach()).sum().item() if pre else 0.0, b.num_tokens if pre else 0, 0, 0,
+                                       (logp.detach() - ref).abs().sum().item() if (pre and ref is not None) else 0.0,
+                                       b.num_tokens if (pre and ref is not None) else 0],
                                       device=d.device, dtype=torch.float64)
         # all-reduce gradients (sum: losses are already divided by global normalizers)
         grads = [p.grad if p.grad is not None else torch.zeros_like(p) for p in model.trainable]
@@ -394,6 +396,7 @@ def train_on_batch(batch: dict, model, optimizer, algo, d: Dist, micro_tokens: i
             "mismatch_abs_lp": stats[2].item() / npre, "clip_frac_0.2": stats[3].item() / ntok,
             "kl_rollout_k1": stats[4].item() / npre,
             "grad_norm": stats[6].item() / max(1.0, stats[7].item()),
+            "shift_vs_base_abs_lp": stats[8].item() / stats[9].item() if stats[9].item() > 0 else None,
             "optimizer_updates": int(round(stats[7].item() / d.world))}
 
 
@@ -446,7 +449,7 @@ def main() -> None:
                                       "algo_sha256": algo_info["sha256"], "seed": args.seed,
                                       "world_size": d.world, "micro_tokens": args.micro_tokens,
                                       "model": cfg["model"]["hf_id"], "model_revision": cfg["model"]["revision"],
-                                      "started_utc": datetime.datetime.utcnow().isoformat() + "Z"})
+                                      "started_utc": datetime.datetime.now(datetime.timezone.utc).isoformat()})
     d.barrier()
     if (run_dir / "done").exists():
         if d.rank == 0:
@@ -543,7 +546,7 @@ def main() -> None:
                 log(f"[train] --stop-after-step {args.stop_after_step}: exiting for a resume test")
             return
     if d.rank == 0:
-        atomic_write_json(run_dir / "done", {"steps": total, "finished_utc": datetime.datetime.utcnow().isoformat() + "Z"})
+        atomic_write_json(run_dir / "done", {"steps": total, "finished_utc": datetime.datetime.now(datetime.timezone.utc).isoformat()})
         log(f"[train] finished {total} steps -> {run_dir}")
     d.barrier()
     if d.world > 1:

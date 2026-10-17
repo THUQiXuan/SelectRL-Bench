@@ -26,7 +26,7 @@ the questions raised when running it: [docs/V1_REVIEW.md](docs/V1_REVIEW.md).
 ```bash
 bash scripts/setup_env.sh            # inside a vLLM 0.29 environment (or: --new-venv)
 bash scripts/download_model.sh       # Qwen/Qwen3.5-9B @ pinned revision -> models/ (19 GB)
-bash scripts/fetch_assets.sh         # data + prebuilt checker cache (skip if they are already in the repo)
+bash scripts/build_data.sh           # once: active training pool + checker cache (8 x H200: ~30-60 min)
 bash scripts/smoke.sh                # ~20-30 min: 2 real training steps + resume + tiny eval -> "SMOKE PASS"
 bash scripts/run_baselines.sh        # frozen base + sspo, grpo, passk (seed 0), with val/test evaluation
 bash scripts/collect_results.sh      # results_bundle.tar.gz (small files only)

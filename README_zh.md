@@ -6,7 +6,7 @@
 
 - 模型统一为 `Qwen/Qwen3.5-9B`（固定版本 `c2022362`），关闭思考，vLLM 上下文窗口用模型默认的 262,144 token；每轮最多生成 16,384 token。
 - 推理侧每张卡起一个 vLLM OpenAI 服务（同一个代码路径负责训练采样、建检查器和评测），训练侧每张卡一个进程，LoRA 训练，每步把新 adapter 热加载进 vLLM。
-- 检查器缓存、数据切分随包附带，**不需要在你的机器上重建检查器**（`scripts/build_checkers.sh` 只在想重建时用）。
+- CodeContests 的切分（训练候选 9967 题 / 验证 266 题 / 隐藏测试 422 题，比赛互不重叠）随包附带；训练池筛选和检查器缓存用一条命令在你的机器上建（第 3 步），走的是和训练相同的 vLLM 服务路径，不再是旧版的离线引擎。
 - 判题沙箱已在 worker 启动前把 OpenMP/BLAS 线程锁成 1，并按 CPU 时间判超时；384 核机器上不需要再手动设置。
 - 所有命令都能续跑：中断后重新执行同一条命令即可。
 
@@ -34,15 +34,13 @@ bash scripts/download_model.sh
 
 下载到 `models/Qwen3.5-9B`。模型是公开的，`HF_TOKEN` 可设可不设（只影响匿名限速）；国内网络可先 `export HF_ENDPOINT=https://hf-mirror.com`。
 
-## 3. 数据与检查器缓存
-
-压缩包里已带 `data/` 和 `cache/checkers/`，校验一下即可：
+## 3. 训练池与检查器缓存（一次，8×H200 约 30–60 分钟）
 
 ```bash
-python -m selectrl.bench.integrity verify
+bash scripts/build_data.sh
 ```
 
-输出 `integrity OK` 就可以开始。（从 GitHub 克隆的仓库需要先 `bash scripts/fetch_assets.sh` 下载这两部分。）
+依次：每卡起一个 vLLM 服务（推理专用，占 85% 显存）→ 从训练候选里按哈希取 4000 题、每题基座采 8 条，保留做对 1–7 条的题作为训练池 `data/problems/train.jsonl.gz` → 为训练/验证/测试题生成检查器辅助程序（每题 4 个输入生成器、4 个暴力解、2 个校验器，关闭思考）→ CPU 上建检查用例 `cache/checkers/` 并写清单。每一步都可续跑。
 
 ## 4. 冒烟测试（约 20–30 分钟，先跑这个）
 

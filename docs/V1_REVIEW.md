@@ -11,7 +11,7 @@ this repository addresses each item.
 | 1 | environment | `requirements-gpu.txt` pins vLLM 0.6.6 / torch 2.5.1 / transformers 4.48 / verl 0.2; the reported runs were actually produced in a vLLM 0.29.0 / torch 2.13 / transformers 5.12.1 container | the lock file was never the tested environment; vLLM 0.6.6 cannot run Qwen3.5 | `scripts/setup_env.sh` installs only a few extras on top of an existing vLLM 0.29 environment (or builds one), pins what is installed via constraints, and prints the verified versions |
 | 2 | multi-GPU | the README's per-GPU presets (FSDP full fine-tuning on 4-16 GPUs, TP=2, timing table) were not implemented; the trainer was a single process (vLLM on GPU 0, HF + LoRA on GPU 1) | extra GPUs idle; table not meaningful | one vLLM server per GPU + one torchrun rank per GPU (token-balanced shards, gradient all-reduce); presets derived from measured memory |
 | 3 | packaging | `results/` shipped with `done` markers of every stage | `run_all.sh` on a new machine would skip diagnosis and all training arms | runs live in `runs/`, which is never shipped; reference numbers live in `results/` without markers |
-| 4 | checker stage | the authors' runs did not execute `ec_gen`: they linked checker caches from earlier experiments (built with a 35B helper model on other problem sets) | the checker-building path (`build_checkers.sh`, offline `LLM()`) had never run | helper generation goes through the same vLLM servers as training; the full CodeContests checker cache is prebuilt and shipped, so collaborators do not need to rebuild it |
+| 4 | checker stage | the authors' runs did not execute `ec_gen`: they linked checker caches from earlier experiments (built with a 35B helper model on other problem sets) | the checker-building path (`build_checkers.sh`, offline `LLM()`) had never run | helper generation goes through the same vLLM servers as training; `scripts/build_data.sh` builds the training pool and the whole checker cache in one resumable command |
 | 5 | checker model | `ec_gen` defaulted to `Qwen/Qwen3-8B` regardless of the policy model chosen by the preset | helpers from a model that was not downloaded and not the policy | helpers are written by the policy's base model (Qwen3.5-9B, thinking off) |
 | 6 | vLLM start | offline `LLM(gpu_memory_utilization=0.85)` inside the generation script | fails with "Engine core initialization failed" as soon as anything else holds more than ~15% of the GPU (the root cause is printed above that line) | servers are started by a supervisor that logs each server's output, checks readiness, prints the log tail on failure, and uses a preset memory fraction (0.85 only when nothing else runs on the GPU) |
 | 7 | sandbox threads | no OpenMP/BLAS thread limits (the risk notes claimed otherwise) | on a 384-core host `import numpy` in a 2 GiB sandbox stalls or fails | the pool exports `OMP/OPENBLAS/MKL/NUMEXPR/VECLIB/RAYON_NUM_THREADS=1` before the worker starts, the worker re-asserts them and preloads numpy before forking |
@@ -31,10 +31,10 @@ this repository addresses each item.
    This repository is validated on vLLM 0.29.0 with exactly those versions (`requirements/extra.txt`).
 2. *Single-GPU checker building?* v1 started one offline engine per split, serially (the 4/4/2 helper programs
    were the `n` of one request each), with 85% of the GPU. Here helper generation uses the per-GPU servers; on one
-   GPU nothing else may run on that GPU during this stage, and the shipped cache makes the stage optional.
+   GPU nothing else may run on that GPU during this stage.
 3. *BLAS threads = 1 in the sandbox?* Correct and harmless (sandboxed programs are single-threaded by design);
    v1 lacked it. It is now built in.
 4. *A verified minimal real configuration?* `bash scripts/smoke.sh` (configs/protocol/smoke.yaml) — validated end
    to end on 2 x 48 GB GPUs (split placement).
 5. *Which data was the bundled cache?* Not CodeContests: problem pools and checker caches of earlier experiments.
-   Real CodeContests needs its own checker cache, which is now prebuilt for every split and shipped.
+   Real CodeContests needs its own checker cache; `scripts/build_data.sh` builds it (validated on vLLM 0.29.0).
