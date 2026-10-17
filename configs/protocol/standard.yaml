@@ -1,0 +1,59 @@
+# SelectRL-Bench standard protocol (LOCKED: hashed into bench/LOCK.json; scoring refuses modified copies).
+protocol: selectrl-standard-v1
+
+model:
+  hf_id: Qwen/Qwen3.5-9B
+  revision: c202236235762e1c871ad0ccb60c8ee5ba337b9a
+  local_dir: models/Qwen3.5-9B
+  max_model_len: 262144          # the model's native context window, used by every vLLM server
+  language_model_only: true       # text only: the vision tower is not loaded by vLLM
+
+prompt:
+  template: solve_v1              # selectrl/rollout/prompts.py
+  enable_thinking: false
+
+sampling:                         # training rollouts AND evaluation samples
+  temperature: 1.0
+  top_p: 1.0
+  top_k: -1
+  max_new_tokens: 16384
+
+data:
+  train: data/problems/train.jsonl.gz      # active training pool (base pass rate strictly between 0 and 1)
+  val: data/problems/val.jsonl.gz          # visible validation split
+  test: data/problems/test.jsonl.gz        # hidden test split (never visible to benchmark agents)
+
+checker:
+  version: ccv1
+  time_limit_s: 6.0
+
+train:
+  steps: 100
+  problems_per_step: 32
+  rollouts_per_problem: 16
+  k_deploy: 8
+  ppo_mini_batches: 2
+  optimizer: adamw
+  lr: 1.0e-5
+  weight_decay: 0.0
+  adam_betas: [0.9, 0.99]
+  adam_eps: 1.0e-8
+  max_grad_norm: 1.0
+  loss_norm_tokens: 1024          # constant normalizer of the Dr. GRPO loss aggregation
+  lora:
+    r: 64
+    alpha: 128
+    dropout: 0.0
+    # MLP of every layer + projections of the 8 full-attention layers. vLLM 0.29 applies LoRA on the Gated
+    # DeltaNet projections (in_proj_qkv / in_proj_z / out_proj) with a visible numerical mismatch, so they are excluded.
+    target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+  save_every: 10
+  data_seed: 1234
+  algo_timeout_s: 600
+
+eval:
+  n_eval: 32
+  k_list: [1, 2, 4, 8, 16]
+  primary_metric: select@8
+  seed: 20261016
+  final_only: true
