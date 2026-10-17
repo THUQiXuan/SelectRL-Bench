@@ -16,7 +16,7 @@ sampling:                         # training rollouts AND evaluation samples
   temperature: 1.0
   top_p: 1.0
   top_k: -1
-  max_new_tokens: 16384
+  max_new_tokens: 262144          # no generation cap: a response may use the whole context window (prompt + response <= max_model_len)
 
 data:
   train: data/problems/train.jsonl.gz      # active training pool (base pass rate strictly between 0 and 1)

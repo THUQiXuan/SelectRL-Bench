@@ -7,7 +7,7 @@ repository.
 | item | v1 package | this repository (standard protocol) |
 |---|---|---|
 | policy model | Qwen3-4B, LoRA r = 64 | Qwen3.5-9B, LoRA r = 64 (MLP + full attention) |
-| context / generation | 4,096 / 1,536 tokens | 262,144 / 16,384 tokens |
+| context / generation | 4,096 / 1,536 tokens | 262,144 tokens, no separate generation cap |
 | problems | 100 test problems from earlier execution-selection experiments (AtCoder, LeetCode, USACO, Codeforces) | CodeContests, contest-disjoint splits |
 | checker | reused caches built with Qwen3.5-35B-A3B helper programs | built with the policy's own base model (Qwen3.5-9B, thinking off) |
 | training | 30 steps x 16 problems x 16 rollouts, lr 1e-6 | 100 steps x 32 problems x 16 rollouts, lr 1e-5 |

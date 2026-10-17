@@ -22,7 +22,7 @@ from selectrl.utils import atomic_write_json_gz, log, sha1_16
 from .chk import last_code_block
 
 KINDS: dict[str, int] = {"gen": 4, "bf": 4, "val": 2}
-SAMPLING: dict[str, Any] = {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "max_tokens": 8000}
+SAMPLING: dict[str, Any] = {"temperature": 0.7, "top_p": 0.8, "top_k": 20, "max_tokens": 262144}  # clamped to the context window by the client
 
 HEAD = (
     "Below is a competitive programming problem (standard input / standard output).\n\n"

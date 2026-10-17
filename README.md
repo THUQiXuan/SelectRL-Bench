@@ -40,7 +40,7 @@ from the last finished step, evaluation from the last finished problem).
 | item | value |
 |---|---|
 | model | `Qwen/Qwen3.5-9B` @ `c2022362`, text tower only, bf16, `max_model_len` 262,144, thinking off |
-| sampling | temperature 1.0, top-p 1.0, 16,384 new tokens, identical for training rollouts and evaluation |
+| sampling | temperature 1.0, top-p 1.0, no generation cap (up to the 262,144-token context), identical for training rollouts and evaluation |
 | training | 100 steps x 32 problems x 16 rollouts, 2 PPO mini-batches/step, LoRA r=64 / alpha=128 on MLP + full-attention projections, AdamW lr 1e-5, grad-norm clip 1.0 |
 | data | CodeContests; contest-disjoint splits: train = active pool (base solves 1-7 of 8 samples), val = CodeContests valid + held-out contests, test (hidden) = CodeContests test + held-out contests |
 | checker | per problem: 4 input generators, 4 brute-force solvers, 2 validators written by the base model (thinking off); Chk = public examples pass ∧ stress inputs finish in 6 s CPU ∧ agreement with confirmed brute-force outputs; signature = hash of normalized outputs on all check inputs |

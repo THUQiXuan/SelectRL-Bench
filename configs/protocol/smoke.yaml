@@ -2,8 +2,6 @@
 # Not a benchmark protocol: results are meaningless, only "it runs" matters.
 inherit: standard.yaml
 protocol: selectrl-smoke-v1
-sampling:
-  max_new_tokens: 2048
 data:
   train: data/problems/train.jsonl.gz
   val: data/problems/val.jsonl.gz

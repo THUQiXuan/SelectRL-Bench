@@ -51,7 +51,7 @@ rejects such code (`python -m selectrl.bench.guard algorithms/candidate`).
 ## What is fixed (do not try to change it; it is hash-locked)
 
 Model, LoRA shape, optimizer (AdamW, lr 1e-5, grad-norm clip 1.0), 100 steps x 32 problems x 16 rollouts,
-2 PPO mini-batches per step, sampling (temperature 1, top-p 1, 16,384 new tokens, thinking off), the prompt, the
+2 PPO mini-batches per step, sampling (temperature 1, top-p 1, no generation cap (up to the 262,144-token context), thinking off), the prompt, the
 checker and its cache, the selector, the data splits and the evaluation (`configs/protocol/standard.yaml`,
 `selectrl/`, `scripts/`, `data/`, `cache/`). `bash scripts/score.sh` refuses to score a modified harness.
 

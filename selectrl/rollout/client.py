@@ -53,7 +53,7 @@ class ServerPool:
     """Client-side view of the running servers (read from the launcher's state file)."""
 
     def __init__(self, urls: Sequence[str], max_inflight: int = 64, request_timeout: float = 7200.0,
-                 retries: int = 4):
+                 retries: int = 4, max_model_len: int = 262144):
         if not urls:
             raise ValueError("no vLLM servers")
         self.urls = list(urls)
@@ -61,6 +61,7 @@ class ServerPool:
         self.request_timeout = request_timeout
         self.retries = retries
         self._load = [0] * len(self.urls)
+        self.max_model_len = int(max_model_len)
         self.adapters: Dict[str, str] = {}
 
     @classmethod
@@ -68,6 +69,7 @@ class ServerPool:
         st = json.loads(Path(state_path).read_text())
         if not st.get("ready"):
             raise RuntimeError(f"servers not ready: {st.get('reason')}")
+        kw.setdefault("max_model_len", int(st.get("max_model_len", 262144)))
         return cls([s["url"] for s in st["servers"]], **kw)
 
     # ------------------------------------------------------------------ sampling
@@ -100,7 +102,8 @@ class ServerPool:
                     "model": req.model or "base",
                     "prompt": req.prompt_ids,
                     "n": req.n,
-                    "max_tokens": req.max_tokens,
+                    # never cap below the context window: prompt + response may use all of max_model_len
+                    "max_tokens": max(1, min(req.max_tokens, self.max_model_len - len(req.prompt_ids))),
                     "temperature": req.temperature,
                     "top_p": req.top_p,
                     "top_k": req.top_k,
